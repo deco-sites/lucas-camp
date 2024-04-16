@@ -4,6 +4,7 @@ import { Product } from "apps/commerce/types.ts";
 import { formatPrice } from "$sdk/format.ts";
 import { useOffer } from "$sdk/useOffer.ts";
 import LikeButtonIsland from "deco-sites/lucas-camp/islands/LikeButtonIsland.tsx";
+import { mapProductToAnalyticsItem } from "apps/commerce/utils/productToAnalyticsItem.ts";
 
 interface HorizontalProductCardProps {
   product: Product;
@@ -13,54 +14,94 @@ interface HorizontalProductCardProps {
 export const HorizontalProductCard = (
   { product, animation }: HorizontalProductCardProps,
 ) => {
-  const { productID, name, url, offers, isVariantOf, image: images } = product;
+  const productID = product.productID;
+  const url = product.url;
+  const image = product.image?.[0];
+  const name = product.name;
+  const description = product.description;
+  const { listPrice, price } = useOffer(product.offers);
 
-  const description = product.description || isVariantOf?.description;
-  const { listPrice, price, seller } = useOffer(offers);
-
-  const eventParams = {
-    items: [{ item_url: url, quantity: 1, item_name: name! }],
-  };
-
-  const [image] = images ?? [];
+  const eventItem = mapProductToAnalyticsItem({
+    product,
+    breadcrumbList: undefined,
+    price,
+    listPrice,
+  });
 
   return (
-    <div class="flex gap-2 sm:gap-4 md:gap-8 relative w-full">
-      {image.url && (
-        <div class="w-40 md:w-48 h-40 md:h-48 flex justify-center items-center overflow-hidden">
+    <a
+      key={`horizontal-product-card-${productID}`}
+      href={url}
+      aria-label={`Ver produto ${name}`}
+      class="flex gap-2 sm:gap-4 md:gap-8 p-2 sm:p-4 md:p-6 rounded-xl bg-neutral-content relative"
+    >
+      {!!image && (
+        <div
+          class={`w-40 md:w-48 h-40 md:h-48 flex justify-center items-center overflow-hidden rounded`}
+        >
           <Image
-            src={image.url}
-            width={175}
-            height={115}
+            width={200}
+            height={279}
+            sizes="(max-width: 640px) 100vw, 30vw"
+            src={image.url!}
+            alt={image.alternateName}
+            decoding="async"
             loading="lazy"
-            alt={name}
-            class={`duration-300 ${animation ? "hover:scale-110" : ""}`}
+            class={`duration-300 ${
+              animation ? "hover:scale-110" : ""
+            }`}
           />
         </div>
       )}
-      <div class="ml-2 flex flex-col">
-        <h2 class="line-clamp-2 md:line-clamp-3">{name}</h2>
-        <p class="line-clamp-1 md:line-clamp-3">{description}</p>
-        {listPrice && (
-          <p class="text-neutral-500 line-through">
-            De: {formatPrice(listPrice, offers?.priceCurrency)},
-          </p>
-        )}
-        {price && (
-          <p class="text-bold">
-            Por: {formatPrice(price, offers?.priceCurrency)},
-          </p>
-        )}
-        {price && (
-          <AddToCartButtonVTEX
-            eventParams={eventParams}
-            productID={productID}
-            seller={seller ?? "1"}
-          />
-        )}
+
+      {!image && (
+        <div class="w-40 md:w-48 h-40 md:h-48 rounded bg-gray-300" />
+      )}
+
+      <div class="flex flex-col md:flex-row gap-3 sm:gap-4 md:gap-8 flex-1 ">
+        <div class="flex flex-col gap-1 md:gap-8 flex-1 sm:pr-20 md:pr-0">
+          <h2 class="line-clamp-2 md:line-clamp-3 text-base md:text-lg text-base-content uppercase font-normal">
+            {name}
+          </h2>
+          {!!description && (
+            <span class="line-clamp-1 md:line-clamp-3 text-base-content text-xs md:text-sm font-light">
+              {description}
+            </span>
+          )}
+        </div>
+
+        <div class="flex flex-col gap-1 md:gap-8 md:pl-8 md:border-l md:border-solid md:border-gray-300">
+          <div class="flex flex-col gap-1">
+            {!!listPrice && (
+              <span class="line-through text-sm hidden md:inline-flex">
+                {formatPrice(listPrice)}
+              </span>
+            )}
+            {!!price && (
+              <span class="text-sm text-primary">
+                {formatPrice(price)}
+              </span>
+            )}
+          </div>
+
+          {!price && <span class="text-sm">Indisponível</span>}
+
+          <div class="flex flex-col gap-2 mt-auto max-w-48 md:max-w-none">
+            {!!price && (
+              <AddToCartButtonVTEX
+                eventParams={{ items: [eventItem] }}
+                productID={productID}
+                seller={"1"}
+              />
+            )}
+            <button class="btn btn-block hidden md:inline-flex">
+              Ver produto
+            </button>
+          </div>
+        </div>
       </div>
 
       <LikeButtonIsland productID={productID} />
-    </div>
+    </a>
   );
 };
